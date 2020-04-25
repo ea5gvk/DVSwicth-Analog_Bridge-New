@@ -14,9 +14,26 @@ NXDN =  /opt/Analog_Bridge/dvswitch.sh mode NXDN
 P25 =   /opt/Analog_Bridge/dvswitch.sh mode P25
 YSF =   /opt/Analog_Bridge/dvswitch.sh mode YSF
 
+D=sudo /opt/Analog_Bridge/dmr+ 4370
+D0=sudo /opt/Analog_Bridge/dmr+ 4370
+D1=sudo /opt/Analog_Bridge/dmr+ 4371
+D2=sudo /opt/Analog_Bridge/dmr+ 4372
+D3=sudo /opt/Analog_Bridge/dmr+ 4373
+D4=sudo /opt/Analog_Bridge/dmr+ 4374
+D5=sudo /opt/Analog_Bridge/dmr+ 4375
+D6=sudo /opt/Analog_Bridge/dmr+ 4376
+D7=sudo /opt/Analog_Bridge/dmr+ 4377
+D8=sudo /opt/Analog_Bridge/dmr+ 4378
+D9=sudo /opt/Analog_Bridge/dmr+ 4379
+AA==sudo shutdown -r now
+BB=systemctl restart analog_bridge.service
+CC=systemctl restart mmdvm_bridge.service
+B=sudo /opt/Analog_Bridge/bm
+C=sudo /opt/Analog_Bridge/hblink
+D=sudo /opt/Analog_Bridge/dmr+
+
 ; Ask AB to pull fresh data files and send to DVSM/UC
 dbupdate = /opt/Analog_Bridge/dvswitch.sh collectProcessPushDataFiles
 
 ; Example TG / Reflector Macro
 9876 =  /opt/Analog_Bridge/parrot.sh
-
