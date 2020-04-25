@@ -73,11 +73,14 @@ END
 # get file name of the current ABInfo json file
 #################################################################
 function getABInfoFileName() {
-        if [ -z "${ABINFO}" ]; then # if no enviornment variable, use the latest file in /tmp
-        declare _json_file=`ls -t /tmp/ABInfo_*.json 2>/dev/null | head -1`
-    else
-        declare _json_file=$ABINFO  # Use the environment variable (probably set by AB)
-    fi
+
+declare _json_file=/tmp/ABInfo_46001.json
+
+#        if [ -z "${ABINFO}" ]; then # if no enviornment variable, use the latest file in /tmp
+#        declare _json_file=`ls -t /tmp/ABInfo_*.json 2>/dev/null | head -1`
+#    else
+#        declare _json_file=$ABINFO  # Use the environment variable (probably set by AB)
+#    fi
     echo $_json_file
 }
 
