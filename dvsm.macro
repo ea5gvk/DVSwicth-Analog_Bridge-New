@@ -29,7 +29,7 @@ AA==sudo shutdown -r now
 BB=systemctl restart analog_bridge.service
 CC=systemctl restart mmdvm_bridge.service
 B=sudo /opt/Analog_Bridge/dvswitch.sh tune "passw0rd@84.232.5.113:62031"
-C=sudo /opt/Analog_Bridge/dvswitch.sh tune "passw0rd@hblinkspain.duckdns.org:62031"
+C=sudo /opt/Analog_Bridge/dvswitch.sh tune "passw0rd@hblinkspain.duckdns.org:55561"
 
 
 ; Ask AB to pull fresh data files and send to DVSM/UC
