@@ -75,6 +75,7 @@ END
 function getABInfoFileName() {
 
 declare _json_file=/tmp/ABInfo_46001.json
+
 #        if [ -z "${ABINFO}" ]; then # if no enviornment variable, use the latest file in /tmp
 #        declare _json_file=`ls -t /tmp/ABInfo_*.json 2>/dev/null | head -1`
 #    else
