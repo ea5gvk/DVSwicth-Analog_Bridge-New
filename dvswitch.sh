@@ -21,7 +21,7 @@
 #DEBUG=echo
 #set -xv   # this line will enable debug
 
-SCRIPT_VERSION="dvswitch.sh 1.5.5"
+SCRIPT_VERSION="dvswitch.sh 1.5.6"
 
 AB_DIR=${AB_DIR:-"/var/lib/dvswitch"}
 MMDVM_DIR=${MMDVM_DIR:-"/var/lib/mmdvm"}
@@ -73,14 +73,11 @@ END
 # get file name of the current ABInfo json file
 #################################################################
 function getABInfoFileName() {
-
-declare _json_file=/tmp/ABInfo_46001.json
-
-#        if [ -z "${ABINFO}" ]; then # if no enviornment variable, use the latest file in /tmp
-#        declare _json_file=`ls -t /tmp/ABInfo_*.json 2>/dev/null | head -1`
-#    else
-#        declare _json_file=$ABINFO  # Use the environment variable (probably set by AB)
-#    fi
+        if [ -z "${ABINFO}" ]; then # if no enviornment variable, use the latest file in /tmp
+        declare _json_file=`ls -t /tmp/ABInfo_*.json 2>/dev/null | head -1`
+    else
+        declare _json_file=$ABINFO  # Use the environment variable (probably set by AB)
+    fi
     echo $_json_file
 }
 
@@ -350,11 +347,11 @@ function remoteControlCommand() {
     if [ ! -z "${DEBUG}" ]; then
         echo "remoteControlCommand $1"
     else
-python - <<END
+PYTHON_ARG="$1" python - <<END
 #!/usr/bin/env python
 try:
-    import sys, socket, struct
-    cmd = "$1".encode("utf-8")
+    import sys, socket, struct, os
+    cmd = os.environ['PYTHON_ARG'].replace("\\\" + "n", "\n").encode("utf-8")
     _sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     cmd = struct.pack("BB", 0x05, len(cmd))[0:2] + cmd
     _sock.sendto(cmd, ('$SERVER', $TLV_PORT))
@@ -560,19 +557,9 @@ function ParseDStarFile() {
     echo "REF038CL|||REF038 C"
     echo "REF050CL|||REF050 C"
     echo "REF058BL|||REF058 B"
-    echo "REF075BL|||REF075 B"
     echo "REF078BL|||REF078 B"
     echo "REF078CL|||REF078 C"
     echo "DCS006FL|||DCS006 F"
-    echo "DCS018BL|||DCS018 B"
-    echo "DCS018DL|||DCS018 D"
-    echo "DCS051BL|||DCS051 B"
-    echo "DCS051CL|||DCS051 C"
-    echo "DCS051DL|||DCS051 D"
-    echo "DCS051FL|||DCS051 F"
-    echo "DCS051GL|||DCS051 G"
-    echo "DCS051HL|||DCS051 H"
-    echo "DCS051IL|||DCS051 I"
     echo "DCS059AL|||DCS059 A"
 }
 
@@ -784,8 +771,15 @@ function downloadDatabases() {
 
         declare isValid=`grep 3113043 "${MMDVM_DIR}/DMRIds.dat"`
         if [ -z "$isValid" ]; then
-            echo "Error, DMR ID file does not seem to be valid"
-            _ERRORCODE=$ERROR_INVALID_FILE
+
+            ${DEBUG} curl -s -N "http://registry.dstar.su/dmr/DMRIds.php" > "${MMDVM_DIR}/DMRIds.dat"
+            ${DEBUG} curl -s -N "http://registry.dstar.su/dmr/DMRIds.php" | awk -F, 'BEGIN{FS=" ";OFS=",";} NR>1 {if ($1 > "") print $1,$2,$3}' > "${AB_DIR}/subscriber_ids.csv"
+
+            isValid=`grep 3113043 "${MMDVM_DIR}/DMRIds.dat"`
+            if [ -z "$isValid" ]; then
+                echo "Error, DMR ID file does not seem to be valid"
+                _ERRORCODE=$ERROR_INVALID_FILE
+            fi
         fi
     else
         echo "Destination directory does not exist, aborting"
