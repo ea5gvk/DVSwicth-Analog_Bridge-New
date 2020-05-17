@@ -21,11 +21,12 @@
 #DEBUG=echo
 #set -xv   # this line will enable debug
 
-SCRIPT_VERSION="dvswitch.sh 1.5.6"
+SCRIPT_VERSION="dvswitch.sh 1.5.7"
 
 AB_DIR=${AB_DIR:-"/var/lib/dvswitch"}
 MMDVM_DIR=${MMDVM_DIR:-"/var/lib/mmdvm"}
 DVSWITCH_INI=${DVSWITCH_INI:-"/opt/MMDVM_Bridge/DVSwitch.ini"}
+MMDVM_INI=${MMDVM_INI:-"/opt/MMDVM_Bridge/MMDVM_Bridge.ini"}
 NODE_DIR=${NODE_DIR:-"/tmp"}
 
 # Default server and port assignment, but overridden by value in ABInfo
@@ -54,7 +55,6 @@ python - <<END
 #!/usr/bin/env python
 try:
     import json, os
-
     json = json.loads(open("$_json_file").read())
     if "$2" == "":  # Not all values are enclosed in an object
         value = json["$1"]
@@ -397,7 +397,6 @@ python - <<END
 #!/usr/bin/env python
 try:
     import sys, socket, struct
-
     call = "$1"
     dmr_id = $2
     tlvLen = 3 + 4 + 3 + 1 + 1 + len(call) + 1                      # dmrID, repeaterID, tg, ts, cc, call, 0
@@ -432,7 +431,6 @@ python - <<END
 #!/usr/bin/env python
 try:
     import sys, socket, struct
-
     TLV_TAG_FILE_XFER  = 11
     FILE_SUBCOMMAND_READ = 3
     name = "$1".encode("utf-8")
@@ -476,7 +474,6 @@ python - <<END
 #!/usr/bin/env python
 try:
     import sys, socket, struct
-
     TLV_TAG_FILE_XFER  = 11
     FILE_SUBCOMMAND_READ = 3
     name = "$1".encode("utf-8")
@@ -560,9 +557,19 @@ function ParseDStarFile() {
     echo "REF038CL|||REF038 C"
     echo "REF050CL|||REF050 C"
     echo "REF058BL|||REF058 B"
+    echo "REF075BL|||REF075 B"
     echo "REF078BL|||REF078 B"
     echo "REF078CL|||REF078 C"
     echo "DCS006FL|||DCS006 F"
+    echo "DCS018BL|||DCS018 B"
+    echo "DCS018DL|||DCS018 D"
+    echo "DCS051BL|||DCS051 B"
+    echo "DCS051CL|||DCS051 C"
+    echo "DCS051DL|||DCS051 D"
+    echo "DCS051FL|||DCS051 F"
+    echo "DCS051GL|||DCS051 G"
+    echo "DCS051HL|||DCS051 H"
+    echo "DCS051IL|||DCS051 I"
     echo "DCS059AL|||DCS059 A"
 }
 
@@ -875,6 +882,25 @@ function appVersion() {
 }
 
 #################################################################
+# Echo the list of "enabled" modes in MB.ini
+#################################################################
+function getEnabledModes() {
+    # For each mode, disable the main section and the network
+    declare _MODE=""
+    declare _NET=""
+    declare enabledModes=""
+    for mode in DMR "System Fusion" P25 D-Star NXDN; do
+        _MODE=`parseIniFile "$MMDVM_INI" "${mode}" "Enable"`
+        _NET=`parseIniFile "$MMDVM_INI" "${mode} Network" "Enable"`
+        #echo "${mode} mode = ${_MODE} and Network = ${_NET}"
+        if [ ${_MODE} == "1" ] && [ ${_NET} == "1" ]; then
+            enabledModes=`echo ${enabledModes}${mode}" " `
+        fi
+    done
+    echo "$1${enabledModes}"
+}
+
+#################################################################
 # Show usage string to someone who wants to know the available options
 #################################################################
 function usage() {
@@ -906,6 +932,7 @@ function usage() {
     echo -e "\t collectProcessPushDataFiles \t\t\t Collect, prepare and upload DVSM data files"
     echo -e "\t collectProcessPushDataFilesHTTP \t\t Collect, prepare and upload DVSM data files over http"
     echo -e "\t reloadDatabase \t\t\t\t Tell AB to reload database files into memory"
+    echo -e "\t getEnabledModes \t\t\t\t Return the list of "enabled" modes in MB.ini"
     exit 1
 }
 
@@ -1023,6 +1050,13 @@ else
                 ;;
                 usrpCommand|usrp)   # undocumented ATM/WIP
                     USRPCommand "$2" "$3"
+                ;;
+                getEnabledModes)
+                    if [ $# -eq 1 ]; then   # No argument passed, just return the current value 
+                        getEnabledModes "Enabled Modes: "
+                    else
+                        getEnabledModes "$2"
+                    fi
                 ;;
                 *)
                     # unknown option, update branch info (no option is specified, just ordered by placement)
