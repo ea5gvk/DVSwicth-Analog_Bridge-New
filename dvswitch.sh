@@ -21,7 +21,7 @@
 #DEBUG=echo
 #set -xv   # this line will enable debug
 
-SCRIPT_VERSION="dvswitch.sh 1.5.7"
+SCRIPT_VERSION="dvswitch.sh 1.5.8"
 
 AB_DIR=${AB_DIR:-"/var/lib/dvswitch"}
 MMDVM_DIR=${MMDVM_DIR:-"/var/lib/mmdvm"}
@@ -55,6 +55,7 @@ python - <<END
 #!/usr/bin/env python
 try:
     import json, os
+
     json = json.loads(open("$_json_file").read())
     if "$2" == "":  # Not all values are enclosed in an object
         value = json["$1"]
@@ -73,7 +74,6 @@ END
 # get file name of the current ABInfo json file
 #################################################################
 function getABInfoFileName() {
-
 declare _json_file=/tmp/ABInfo_46001.json
 
 #        if [ -z "${ABINFO}" ]; then # if no enviornment variable, use the latest file in /tmp
@@ -397,6 +397,7 @@ python - <<END
 #!/usr/bin/env python
 try:
     import sys, socket, struct
+
     call = "$1"
     dmr_id = $2
     tlvLen = 3 + 4 + 3 + 1 + 1 + len(call) + 1                      # dmrID, repeaterID, tg, ts, cc, call, 0
@@ -431,6 +432,7 @@ python - <<END
 #!/usr/bin/env python
 try:
     import sys, socket, struct
+
     TLV_TAG_FILE_XFER  = 11
     FILE_SUBCOMMAND_READ = 3
     name = "$1".encode("utf-8")
@@ -474,6 +476,7 @@ python - <<END
 #!/usr/bin/env python
 try:
     import sys, socket, struct
+
     TLV_TAG_FILE_XFER  = 11
     FILE_SUBCOMMAND_READ = 3
     name = "$1".encode("utf-8")
@@ -557,19 +560,9 @@ function ParseDStarFile() {
     echo "REF038CL|||REF038 C"
     echo "REF050CL|||REF050 C"
     echo "REF058BL|||REF058 B"
-    echo "REF075BL|||REF075 B"
     echo "REF078BL|||REF078 B"
     echo "REF078CL|||REF078 C"
     echo "DCS006FL|||DCS006 F"
-    echo "DCS018BL|||DCS018 B"
-    echo "DCS018DL|||DCS018 D"
-    echo "DCS051BL|||DCS051 B"
-    echo "DCS051CL|||DCS051 C"
-    echo "DCS051DL|||DCS051 D"
-    echo "DCS051FL|||DCS051 F"
-    echo "DCS051GL|||DCS051 G"
-    echo "DCS051HL|||DCS051 H"
-    echo "DCS051IL|||DCS051 I"
     echo "DCS059AL|||DCS059 A"
 }
 
@@ -609,7 +602,7 @@ END
 # validation (look for my node number)
 #################################################################
 function DownloadAndValidateASLNodeList() {
-    curl --fail -o "$NODE_DIR/$1" -s https://allstarlink.org/cgi-bin/allmondb.pl
+    curl --fail -s https://www.allstarlink.org/allmondb.php | sed -e :a -e '$d;N;2,7ba' -e 'P;D' > "$NODE_DIR/$1"
     declare isValid=`grep -i N4IRS "$NODE_DIR/$1"`
     if [ -z "${isValid}" ]; then
         rm "$NODE_DIR/$1"
