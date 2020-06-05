@@ -74,13 +74,11 @@ END
 # get file name of the current ABInfo json file
 #################################################################
 function getABInfoFileName() {
-declare _json_file=/tmp/ABInfo_46001.json
-
-#        if [ -z "${ABINFO}" ]; then # if no enviornment variable, use the latest file in /tmp
-#        declare _json_file=`ls -t /tmp/ABInfo_*.json 2>/dev/null | head -1`
-#    else
-#        declare _json_file=$ABINFO  # Use the environment variable (probably set by AB)
-#    fi
+        if [ -z "${ABINFO}" ]; then # if no enviornment variable, use the latest file in /tmp
+        declare _json_file=`ls -t /tmp/ABInfo_*.json 2>/dev/null | head -1`
+    else
+        declare _json_file=$ABINFO  # Use the environment variable (probably set by AB)
+    fi
     echo $_json_file
 }
 
@@ -602,7 +600,13 @@ END
 # validation (look for my node number)
 #################################################################
 function DownloadAndValidateASLNodeList() {
+    declare _OS=$(uname -s)
     curl --fail -s https://www.allstarlink.org/allmondb.php | sed -e :a -e '$d;N;2,7ba' -e 'P;D' > "$NODE_DIR/$1"
+    if [ ${_OS} == Darwin ]; then
+        sed -i '' 's/||/|<None>|/g' "$NODE_DIR/$1"
+    else
+        sed -i 's/||/|<None>|/g' "$NODE_DIR/$1"
+    fi
     declare isValid=`grep -i N4IRS "$NODE_DIR/$1"`
     if [ -z "${isValid}" ]; then
         rm "$NODE_DIR/$1"
