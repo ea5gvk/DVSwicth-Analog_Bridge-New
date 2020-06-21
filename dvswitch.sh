@@ -560,9 +560,19 @@ function ParseDStarFile() {
     echo "REF038CL|||REF038 C"
     echo "REF050CL|||REF050 C"
     echo "REF058BL|||REF058 B"
+    echo "REF075BL|||REF075 B"
     echo "REF078BL|||REF078 B"
     echo "REF078CL|||REF078 C"
     echo "DCS006FL|||DCS006 F"
+    echo "DCS018BL|||DCS018 B"
+    echo "DCS018DL|||DCS018 D"
+    echo "DCS051BL|||DCS051 B"
+    echo "DCS051CL|||DCS051 C"
+    echo "DCS051DL|||DCS051 D"
+    echo "DCS051FL|||DCS051 F"
+    echo "DCS051GL|||DCS051 G"
+    echo "DCS051HL|||DCS051 H"
+    echo "DCS051IL|||DCS051 I"
     echo "DCS059AL|||DCS059 A"
 }
 
@@ -762,9 +772,9 @@ function downloadAndValidate() {
 function downloadDatabases() {
     if [ -d "${MMDVM_DIR}" ] && [ -d "${AB_DIR}" ]; then
 
-        ${DEBUG} curl -s -N "https://www.radioid.net/static/user.csv" | awk -F, 'NR>1 {if ($1 > "") print $1,$2,$3}' > "${MMDVM_DIR}/DMRIds.dat"
-        ${DEBUG} curl -s -N "https://www.radioid.net/static/user.csv" | awk -F, 'BEGIN{OFS=",";} NR>1 {if ($1 > "") print $1,$2,$3}' > "${AB_DIR}/subscriber_ids.csv"
-        ${DEBUG} curl -s -N "https://www.radioid.net/static/nxdn.csv" > "${MMDVM_DIR}/NXDN.csv"
+        ${DEBUG} curl -s -N "https://database.radioid.net/static/user.csv" | awk -F, 'NR>1 {if ($1 > "") print $1,$2,$3}' > "${MMDVM_DIR}/DMRIds.dat"
+        ${DEBUG} curl -s -N "https://database.radioid.net/static/user.csv" | awk -F, 'BEGIN{OFS=",";} NR>1 {if ($1 > "") print $1,$2,$3}' > "${AB_DIR}/subscriber_ids.csv"
+        ${DEBUG} curl -s -N "https://database.radioid.net/static/nxdn.csv" > "${MMDVM_DIR}/NXDN.csv"
 
         downloadAndValidate "NXDNHosts.txt" "NXDN_Hosts.txt" "dvswitch.org"
         downloadAndValidate "P25Hosts.txt" "P25_Hosts.txt" "dvswitch.org"
