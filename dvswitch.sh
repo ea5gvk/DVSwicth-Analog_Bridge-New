@@ -1,13 +1,10 @@
 #!/bin/bash
 
 #################################################################
-# /*
-#  * Copyright (C) 2019 N4IRR
-#  *
+# /* Copyright (C) 2019 N4IRR
 #  * Permission to use, copy, modify, and/or distribute this software for any
 #  * purpose with or without fee is hereby granted, provided that the above
 #  * copyright notice and this permission notice appear in all copies.
-#  *
 #  * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
 #  * REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
 #  * AND FITNESS.  IN NO EVENT SHALL N4IRR BE LIABLE FOR ANY SPECIAL, DIRECT,
@@ -21,7 +18,7 @@
 #DEBUG=echo
 #set -xv   # this line will enable debug
 
-SCRIPT_VERSION="dvswitch.sh 1.5.8"
+SCRIPT_VERSION="dvswitch.sh 1.5.9"
 
 AB_DIR=${AB_DIR:-"/var/lib/dvswitch"}
 MMDVM_DIR=${MMDVM_DIR:-"/var/lib/mmdvm"}
@@ -43,6 +40,7 @@ ERROR_INVALID_ARGUMENT=-2
 ERROR_EMPTY_FILE=-3
 ERROR_DIR_NOT_FOUND=-4
 ERROR_INVALID_FILE=-5
+ERROR_LOOKUP_FAILED=-6
 _ERRORCODE=$SUCCESSS
 
 #################################################################
@@ -51,10 +49,10 @@ _ERRORCODE=$SUCCESSS
 #################################################################
 function getABInfoValue() {
     declare _json_file=`getABInfoFileName`
-python - <<END
+python3 - <<END
 #!/usr/bin/env python
 try:
-    import json, os
+    import json, os, sys
 
     json = json.loads(open("$_json_file").read())
     if "$2" == "":  # Not all values are enclosed in an object
@@ -66,6 +64,8 @@ try:
             value = json["$1"]["$2"]["$3"]
     print(value)
 except:
+    sys.stderr.write("getABInfoValue: error getting value(s) $1 $2 $3\n")
+    print("ERROR")
     exit(1)
 END
 }
@@ -89,14 +89,16 @@ declare _json_file=/tmp/ABInfo_46001.json
 # parseIniFile fileName stanza tag
 #################################################################
 function parseIniFile() {
-python - <<END
+python3 - <<END
 #!/usr/bin/env python
 try:
-    import sys, ConfigParser
-    config = ConfigParser.ConfigParser()
+    import sys, configparser
+    config = configparser.ConfigParser(inline_comment_prefixes=(';',))
     config.read("$1")
     print( config.get('$2', '$3') )
 except:
+    sys.stderr.write("parseIniFile: Config parse error for file: $1\n")
+    print("ERROR")
     exit(1)
 END
 }
@@ -350,7 +352,7 @@ function remoteControlCommand() {
     if [ ! -z "${DEBUG}" ]; then
         echo "remoteControlCommand $1"
     else
-PYTHON_ARG="$1" python - <<END
+PYTHON_ARG="$1" python3 - <<END
 #!/usr/bin/env python
 try:
     import sys, socket, struct, os
@@ -360,6 +362,7 @@ try:
     _sock.sendto(cmd, ('$SERVER', $TLV_PORT))
     _sock.close()
 except:
+    sys.stderr.write("remoteControlCommand: error sending command\n")
     exit(1)
 END
     fi
@@ -369,9 +372,9 @@ END
 # Compose a USRP packet and send it to AB (WIP: address and port)
 #################################################################
 function USRPCommand() {
-python - <<END
+python3 - <<END
 #!/usr/bin/env python
-import traceback, struct, socket
+import traceback, struct, socket, sys
 try:
     usrpSeq = 1
     packetType = $1
@@ -382,6 +385,7 @@ try:
     udp.sendto(usrp, ("127.0.0.1", 12345))
     udp.close()
 except:
+    sys.stderr.write("USRPCommand: error sending command\n")
     traceback.print_exc()
 END
 }
@@ -393,7 +397,7 @@ function setCallAndID() {
     if [ ! -z "${DEBUG}" ]; then
         echo "setCallAndID $1"
     else
-python - <<END
+python3 - <<END
 #!/usr/bin/env python
 try:
     import sys, socket, struct
@@ -406,6 +410,7 @@ try:
     _sock.sendto(cmd, ('$SERVER', $TLV_PORT))
     _sock.close()
 except:
+    sys.stderr.write("setCallAndID: error sending command\n")
     exit(1)
 END
     fi
@@ -428,19 +433,20 @@ function pushFileToClient() {
             return
         fi
 
-python - <<END
+python3 - <<END
 #!/usr/bin/env python
 try:
     import sys, socket, struct
 
     TLV_TAG_FILE_XFER  = 11
     FILE_SUBCOMMAND_READ = 3
-    name = "$1".encode("utf-8")
+    name = "$1".encode("utf-8")+b'\x00'
     _sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    cmd = struct.pack("BBB", TLV_TAG_FILE_XFER, len(name)+2, FILE_SUBCOMMAND_READ)[0:3] + name + chr(0)
+    cmd = struct.pack("BBB", TLV_TAG_FILE_XFER, len(name)+1, FILE_SUBCOMMAND_READ)[0:3] + name
     _sock.sendto(cmd, ('$SERVER', $TLV_PORT))
     _sock.close()
 except:
+    sys.stderr.write("pushFileToClient: error pushing file $1\n")
     exit(1)
 END
     fi
@@ -472,19 +478,20 @@ function pushLocalFileAsURLToClient() {
 # the name begins with http it is a URL.
 #################################################################
 function pushURLToClient() {
-python - <<END
+python3 - <<END
 #!/usr/bin/env python
 try:
     import sys, socket, struct
 
     TLV_TAG_FILE_XFER  = 11
     FILE_SUBCOMMAND_READ = 3
-    name = "$1".encode("utf-8")
+    name = "$1".encode("utf-8")+b'\x00'
     _sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    cmd = struct.pack("BBB", TLV_TAG_FILE_XFER, len(name)+2, FILE_SUBCOMMAND_READ)[0:3] + name + chr(0)
+    cmd = struct.pack("BBB", TLV_TAG_FILE_XFER, len(name)+1, FILE_SUBCOMMAND_READ)[0:3] + name
     _sock.sendto(cmd, ('$SERVER', $TLV_PORT))
     _sock.close()
 except:
+    sys.stderr.write("pushURLToClient: error sending URL $1\n")
     exit(1)
 END
 }
@@ -495,8 +502,9 @@ END
 
 function ParseYSFile() {
     curl --fail -o "$NODE_DIR/$1" -s http://www.pistar.uk/downloads/$1
-python - <<END
+python3 - <<END
 try:
+    import sys
     print("disconnect|||Unlink") # Make sure unlink is first in list
     f=open("$NODE_DIR/$1", "r")
     if f.mode == 'r':
@@ -511,6 +519,8 @@ try:
                 print(fields[3] + ":" + fields[4] + "|||" + fields[1])
         f.close()
 except:
+    sys.stderr.write("parseYSFile: error parsing file $1\n")
+    print("ERROR|||ERROR")
     exit(1)
 END
 }
@@ -520,8 +530,9 @@ END
 #################################################################
 function ParseTGFile() {
     curl --fail -o "$NODE_DIR/$1" -s http://www.pistar.uk/downloads/$1
-python - <<END
+python3 - <<END
 try:
+    import sys
     print("4000|||Unlink") # Make sure unlink is first in list
     f=open("$NODE_DIR/$1", "r")
     if f.mode == 'r':
@@ -536,6 +547,8 @@ try:
                 print(fields[0] + "|||" + fields[2].split('_TG')[0].replace('_',' '))
         f.close()
 except:
+    sys.stderr.write("parseTGFile: error parsing $1\n")
+    print("ERROR|||ERROR")
     exit(1)
 END
 }
@@ -581,8 +594,9 @@ function ParseDStarFile() {
 #################################################################
 function ParseNodeFile() {
     curl --fail -o "$NODE_DIR/$1" -s http://www.pistar.uk/downloads/$1
-python - <<END
+python3 - <<END
 try:
+    import sys
     print("9999|||Unlink") # Make sure unlink is first in list
     f=open("$NODE_DIR/$1", "r")
     if f.mode == 'r':
@@ -603,6 +617,8 @@ try:
                 state = 0
         f.close()
 except:
+    sys.stderr.write("parseNodeFile: error parsing $1\n")
+    print("ERROR|||ERROR")
     exit(1)
 END
 }
@@ -775,6 +791,7 @@ function downloadDatabases() {
         ${DEBUG} curl -s -N "https://database.radioid.net/static/user.csv" | awk -F, 'NR>1 {if ($1 > "") print $1,$2,$3}' > "${MMDVM_DIR}/DMRIds.dat"
         ${DEBUG} curl -s -N "https://database.radioid.net/static/user.csv" | awk -F, 'BEGIN{OFS=",";} NR>1 {if ($1 > "") print $1,$2,$3}' > "${AB_DIR}/subscriber_ids.csv"
         ${DEBUG} curl -s -N "https://database.radioid.net/static/nxdn.csv" > "${MMDVM_DIR}/NXDN.csv"
+        ${DEBUG} curl -s -N "http://www.pistar.uk/downloads/DMR_Hosts.txt" > "${MMDVM_DIR}/DMR_Hosts.txt"
 
         downloadAndValidate "NXDNHosts.txt" "NXDN_Hosts.txt" "dvswitch.org"
         downloadAndValidate "P25Hosts.txt" "P25_Hosts.txt" "dvswitch.org"
@@ -853,9 +870,15 @@ function prettyPrintInfo() {
 function lookup() {
     declare databaseName="${MMDVM_DIR}/DMRIds.dat"
     if [ -f "${databaseName}" ]; then
-        grep -i $1 "${databaseName}"
+        found=`grep -i $1 "${databaseName}"`
+        if [ -z "$found" ]; then
+            _ERRORCODE=$ERROR_LOOKUP_FAILED
+        else
+            echo $found
+        fi
     else
         echo DMR ID database file not found at ${databaseName}
+        _ERRORCODE=$ERROR_LOOKUP_FAILED
     fi
 }
 
@@ -868,18 +891,25 @@ function appVersion() {
     else
         case $1 in
             ab|AB|Analog_Bridge)
-                if [ -f "$AB_DIR/Analog_Bridge" ]; then
-                    "$AB_DIR/Analog_Bridge" -v
+                if [ -f "/opt/Analog_Bridge/Analog_Bridge" ]; then
+                    "/opt/Analog_Bridge/Analog_Bridge" -v
                 else
                     getABInfoValue ab version
                 fi
             ;;
             mb|MB|MMDVM_Bridge)
-                if [ -f "$MMDVM_DIR/MMDVM_Bridge" ]; then
-                    "$MMDVM_DIR/MMDVM_Bridge" -v
+                if [ -f "/opt/MMDVM_Bridge/MMDVM_Bridge" ]; then
+                    "/opt/MMDVM_Bridge/MMDVM_Bridge" -v
                 else
                     echo UNKNOWN
                 fi
+            ;;
+            gw|GW)
+                for gw in P25Gateway NXDNGateway YSFGateway; do
+                    if [ -f "/opt/$gw/$gw" ]; then
+                        "/opt/$gw/$gw" -v
+                    fi
+                done 
             ;;
             all|ALL)
                 appVersion
@@ -910,6 +940,73 @@ function getEnabledModes() {
 }
 
 #################################################################
+# Print out the owner for a specified UDP port
+#################################################################
+function getUDPPortOwner() {
+    if [ -z "$1" ]; then
+        echo "Argument required: port number"
+        _ERRORCODE=$ERROR_INVALID_ARGUMENT
+    else
+        declare port=":$1"
+        declare _OS=$(uname -s)
+
+        if [ ${_OS} == Darwin ]; then
+            declare pid=$(lsof -i udp$port -P +c 0 | awk 'NR>1 {print $2}')
+            if [ -z "$pid" ]; then
+                echo "No processes listening on port $port"
+            else
+                ps -f $pid | awk 'NR>1 {print $8 " " $9 " " $10}'
+            fi
+        else
+            declare pid=$(sudo netstat -unap | grep "$port" | awk '{print $6}' | cut -d'/' -f1)
+            if [ -z "$pid" ]; then
+                echo "No processes listening on port $port"
+            else
+                ps -f $pid | awk 'NR>1 {print $9 " " $10 " " $11}'
+            fi
+        fi
+    fi
+}
+
+#################################################################
+# Print out the ports owned by a specified process
+#################################################################
+function getUDPPortsForProcess() {
+    if [ -z "$1" ]; then
+        echo "Argument required: process name"
+        _ERRORCODE=$ERROR_INVALID_ARGUMENT
+    else
+        declare process="$1"
+        declare _OS=$(uname -s)
+
+        set -f;
+        if [ ${_OS} == Darwin ]; then
+            declare ports=($(lsof -i udp -P +c 0 | grep -i "$process" | awk '{if ($9 != "*:*") print $9}' | cut -d':' -f2))
+            declare name=$(lsof -i udp -P +c 0 | grep -i "$process" | awk 'NR==1 {print $1}')
+            if [ ! -z "$name" ]; then
+                echo "$name owns UDP ports: ${ports[@]}"
+            fi
+        else
+            declare ports=($(sudo netstat -unap | grep -i "$process" | awk '{split($4, a, ":"); print a[2]}'))
+            if [ ${#ports[@]} -gt 0 ]; then
+                declare name=$(sudo netstat -unap | grep ":${ports[0]}" | awk '{print $6}' | cut -d'/' -f2)
+                echo "$name owns UDP ports: ${ports[@]}"
+            fi
+        fi
+        set +f;
+    fi
+}
+
+#################################################################
+# Print out the ports for all DVSwitch processes
+#################################################################
+function getUDPPortsForDVSwitch() {
+    for i in Analog_Bridge MMDVM_Bridge Quantar_Bridge P25gateway NXDNGateway DMRGateway YSFGateway ircddbgateway YSFParrot NXDNParrot md380-emu; do
+        getUDPPortsForProcess "$i"
+    done
+}
+
+#################################################################
 # Show usage string to someone who wants to know the available options
 #################################################################
 function usage() {
@@ -917,7 +1014,7 @@ function usage() {
     echo -e "$0 \n\t { version | mode | tune | ambesize | ambemode | slot | update | tlvAudio | usrpAudio | usrpCodec | tlvPorts | "
     echo -e "\t   info | show | lookup | mute | message | macro |"
     echo -e "\t   pushfile | collectProcessDataFiles | collectProcessPushDataFiles | pushurl | collectProcessPushDataFilesHTTP }"
-    echo -e "\t version {AB|MB|ALL}\t\t\t\t Show version of dvswitch.sh, Analog_Bridge or MMDVM_Bridge"
+    echo -e "\t version {AB|MB|GW|ALL}\t\t\t\t Show version of dvswitch.sh, Analog_Bridge or MMDVM_Bridge"
     echo -e "\t mode {DMR|NXDN|P25|YSF|DSTAR} \t\t\t Set Analog_Bridge digital mode"
     echo -e "\t tune tg \t\t\t\t\t Tune to specific TG/Reflector"
     echo -e "\t ambesize {72|88|49}\t\t\t\t Set number of bits for ambe data"
@@ -942,6 +1039,8 @@ function usage() {
     echo -e "\t collectProcessPushDataFilesHTTP \t\t Collect, prepare and upload DVSM data files over http"
     echo -e "\t reloadDatabase \t\t\t\t Tell AB to reload database files into memory"
     echo -e "\t getEnabledModes \t\t\t\t Return the list of "enabled" modes in MB.ini"
+    echo -e "\t getUDPPortOwner {UDP port}\t\t\t Print out the process owner for the specified port"
+    echo -e "\t getUDPPortsForProcess {process name|ALL}\t Print out the ports owned by the specified process (or all DVSwitch processes)"
     exit 1
 }
 
@@ -967,11 +1066,28 @@ else
         version|-v)
             appVersion $2
         ;;
+        getEnabledModes|getenabledmodes|gem)
+            if [ $# -eq 1 ]; then   # No argument passed, just return the current value 
+                getEnabledModes "Enabled Modes: "
+            else
+                getEnabledModes "$2"
+            fi
+        ;;
+        getUDPPortOwner|getudpportowner|gupo)
+            getUDPPortOwner "$2"
+        ;;
+        getUDPPortsForProcess|getudpportsforprocess|gupfp)
+            if [ -z "$2" ] || [ $2 == "all" ] || [ $2 == "ALL" ]; then
+                getUDPPortsForDVSwitch
+            else
+                getUDPPortsForProcess "$2"
+            fi
+        ;;
         *)
             # All the commands below require that a valid ABInfo file exists.  
             TLV_PORT=`getTLVPort`   # Get the communications port to use before we go further
-            if [ -z $TLV_PORT ]; then
-                echo "Can not find /tmp/ABInfo file (have you run Analog_Brigde?), aborting" 
+            if [ $TLV_PORT == "ERROR" ]; then
+                echo "Can not find /tmp/ABInfo file (have you run Analog_Bridge?), aborting" 
                 exit 1
             fi
             case $1 in
@@ -1059,13 +1175,6 @@ else
                 ;;
                 usrpCommand|usrp)   # undocumented ATM/WIP
                     USRPCommand "$2" "$3"
-                ;;
-                getEnabledModes)
-                    if [ $# -eq 1 ]; then   # No argument passed, just return the current value 
-                        getEnabledModes "Enabled Modes: "
-                    else
-                        getEnabledModes "$2"
-                    fi
                 ;;
                 *)
                     # unknown option, update branch info (no option is specified, just ordered by placement)
